@@ -1,3 +1,3 @@
-# Projects
+# National Football league data
 
-Each Project is seen in the branch nodes.
+Analysis of NFL data for 2012 - 2015
