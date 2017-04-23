@@ -1,0 +1,111 @@
+---
+title: "Music Preference"
+author: "Raghavendran Shankar"
+date: "9 April 2017"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading Libraries
+
+```{r Loading Libraries}
+#install.packages("corrplot")
+#install.packages("rgl")
+#install.packages("MASS")
+#install.packages("cluster")
+#install.packages("GGally")
+library(corrplot)
+library(rgl)
+library(MASS)
+library(cluster)
+library(GGally)
+```
+
+## Loading Survey Dataset
+
+```{r Loading Dataset}
+response <- read.csv("E:\\Datasets\\Survey Data\\responses.csv")
+```
+
+## Choosing the Music Preference variables across the survey to find music preference
+
+```{r Music preference subset}
+song_pref <- response[1:19]
+song_pref[is.na(song_pref)] <- 0 # Replacing NA values by 0
+str(song_pref)
+head(song_pref,10) # Displaying the first 10 rows
+```
+
+## Finding Correlation between types of music
+
+```{r Correlation between the music likes,fig.height=10,fig.width=10}
+ggpairs(song_pref)
+M <- cor(song_pref)
+corrplot(M,method = "square",main = 'Correlation between music')
+# From the corrplot, it is seen that people who rated much likes for Rock also likes Punk, Metal or Hardrock, Rock n Roll. People who liked Classical Music also liked Opera; people who liked Pop also liked Dance and Hiphop and Rap. People who liked Alternative Music also liked Rock, Metal and Punk.
+```
+
+## Scaling the variables to have uniform varience for analysis
+
+```{r Scaling the variables}
+par(mfrow=c(1,2))
+barplot(sapply(song_pref,var),horiz = T,las = 1,cex.names = 0.8,main = 'Non-uniform variablity across the music types')
+song_scaled <- data.frame(scale(song_pref))
+barplot(sapply(song_scaled,var),horiz = T,las = 1,cex.names = 0.8,main = 'Uniformity across the music types')
+# From the plot, it is seen that scaling makes the data uniform on a single scale to correctly compute scores from Principal Component Analysis(PCA)
+```
+
+## Perform Principal Component Analysis to compute scores of each people according to their music preferences
+
+```{r PCA}
+pcomp <- princomp(x = song_scaled)
+plot(pcomp,type = 'l')
+summary(pcomp)
+pc <- prcomp(song_pref)
+comp <- data.frame(pc$x[,1:4])
+plot(comp, pch=16, col=rgb(0,0,0,0.5))
+plot3d(comp$PC1,comp$PC2,comp$PC3)
+
+head(comp$PC1,10)
+# The scores for people are calculated according to their music preference. Person 976 gave high ratings (5) to more types of music and person 488 gave low or no ratings for most of the music types.
+```
+
+## Finding optimal number of Cluster groups by MultiDimensional Scaling
+
+```{r MultiDimensional Scaling}
+corr <- cor(song_pref,use = "pairwise.complete")
+d1 <- 1- abs(corr)
+m1 <- isoMDS(d1,k=1)
+m2 <- isoMDS(d1,k=2)
+m3 <- isoMDS(d1,k = 3)
+m4 <- isoMDS(d1,k = 4)
+m5 <- isoMDS(d1,k = 5)
+m6 <- isoMDS(d1,k = 6)
+m7 <- isoMDS(d1,k = 7)
+m8 <- isoMDS(d1,k = 8)
+m9 <- isoMDS(d1,k = 9)
+m10 <- isoMDS(d1,k = 10)
+
+stress <- c(m1$stress,m2$stress,m3$stress,m4$stress,m5$stress,m6$stress,m7$stress,m8$stress,m9$stress,m10$stress)
+dimensions <- 1:10
+
+plot(dimensions,stress,type = 'b')
+
+# From the stress plot, it is seen that from stress point 5 to 6 there is not much difference and the stress is low. So, 6 clusters were taken for cluster analysis.
+```
+
+## Clara Clustering to group people by their Music Preference
+
+```{r Clara Clustering}
+c1 <- clara(song_pref,k = 6)
+c1$clustering
+plot(c1)
+# Conclusion: There are 6 clusters which denotes 6 types of people and their different attitudes towards music preferences. The comparison between the first component score of PCA analysis and the clusters gives the same result.
+# Here, the higher score from PCA first component is clustered in 6th group which denotes that these people have strong liking towards all types of music followed by 3rd group of people and the lowest scores from PCA is clustered in 4th group which says that these people have low or no rating towards most of the music types.
+```
+
