@@ -1,3 +1,3 @@
 # Projects
 
-Each Project is seen in the branch nodes.
+Each and every Project can be viewed in their respective branches.
