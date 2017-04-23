@@ -1,0 +1,599 @@
+---
+title: "Analysis of Spotify data"
+output:
+  word_document: default
+  html_document: default
+Author: Raghavendran Shankar
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The succesfulness of the song is determined by various audio features which makes it to go up the ladder in the Top Billboard charts. The goal of the analysis is to determine the audio features of the song and their contibution to the Successfulness of the song. The various audio features include the danceability level, energy, tempo, valence, acousticness, liveliness, loudness etc. which contributes a major factor to make a song successful.
+
+Here we see the analysis of the data that was gathered using Billboard's Charts from Jan 1, 2000 - Dec. 31, 2005. The data set includes 350 songs that peaked within the Top 10 during that time. It also has 241 songs that peaked between 30-40 on the charts during that time.
+
+```{r libraries,echo=TRUE}
+library(httr)
+library(jsonlite)
+library(curl)
+library(ggplot2)
+library(reshape2)
+library(stringr)
+#install.packages("fuzzyjoin",repos='http://cran.us.r-project.org')
+#install.packages("stringdist",repos='http://cran.us.r-project.org')
+library(stringdist)
+library(fuzzyjoin)
+library(rpart)
+library(tidyr)
+```
+
+## Spotify API configuration
+
+The Spotify API configuration is the first and foremost step to form an interface with Spotify and R for analysis purpose. The key configurations are the Client key and client secret key given while creating the application in Spotify developer console. 
+
+```{r Spotify App, echo=FALSE}
+spotifyKey <- '2397dddcfb414677a3de9358076af700'
+spotifySecret <- '32aa709ed093430b8a081774dfd8cbc4'
+```
+
+The Request and Response urls are configured to get the playlist IDs and track IDS of the song that we have imported in our playlist. The authentication key called Oauth token is used to authenticate our user profile and request before it gives its response. 
+
+```{r Response,echo=TRUE}
+response = POST('https://accounts.spotify.com/api/token',
+              accept_json(),
+              authenticate(spotifyKey, spotifySecret),
+              body = list(grant_type = 'client_credentials'),
+              encode = 'form',
+              verbose()
+)
+```
+```{r Token,echo=FALSE}
+mytoken = content(response)$access_token
+
+```
+
+```{r Get Playlist,echo=TRUE}
+spotifyID <- "22vj7pwybpow4rrgw6acnxolq"
+spotifyPlaylist <- "7ckg79YQQcX6yiCGNbrRBx"
+artists_name <- data.frame()
+name_track <- data.frame()
+for(offset in c(0,100,200,300,400,500)){
+        playlistTracksURL <- paste("https://api.spotify.com/v1/users/",
+                                   spotifyID,
+                                   "/playlists/",
+                                   spotifyPlaylist,
+                                   "/tracks?offset=",offset,
+                                   sep="")     
+        
+        
+        
+        HeaderValue = paste0('Bearer ', mytoken)
+        getTracks <- GET(url=playlistTracksURL, add_headers(Authorization = HeaderValue))
+        info <- jsonlite::fromJSON(toJSON(content(getTracks)))
+        track <- unlist(info$items$track$id)
+        name <- unlist(info$items$track$name)
+        name_track1 <- as.data.frame(cbind(as.character(name),as.character(track)))
+        name_track <- as.data.frame(rbind(name_track,name_track1))
+        
+        artists <- as.character()
+        if(offset == 500){
+                for(i in 1:82){
+                        
+                        artists <- paste0(artists,unlist(info$items$track$artists[[i]][4][[1]][1]),sep=",")
+                        
+                        
+                }} else {
+                        for(i in 1:100){
+                                
+                                artists <- paste0(artists,unlist(info$items$track$artists[[i]][4][[1]][1]),sep=",")
+                                
+                                
+                        }  
+                }  
+        
+        
+        
+        artists <- as.data.frame(unlist(strsplit(artists, ",", fixed = TRUE)))
+        
+        artists_name <- as.data.frame(rbind(artists_name,artists))
+        
+        
+}
+
+artists_name <- as.data.frame(artists_name[-c(334,335,344,348,349),])
+name_track <- as.data.frame(cbind(name_track,artists_name))
+colnames(name_track) <- c("Songs","TrackID","Artist")
+name_track <- name_track[order(name_track$Songs),]
+trackIDs <- unlist(as.character(name_track$TrackID))
+```
+
+```{r Get trackIds,echo=TRUE}
+audio_feat_op <- data.frame()
+track_str <- trackIDs[1]
+for (i in 2:100) {
+       
+  track_str <- paste(track_str, trackIDs[i], sep=",")
+}
+
+trackFeaturesURL <- paste("https://api.spotify.com/v1/audio-features/?ids=",
+                           track_str,
+                           sep="")
+
+getSongFeats <- GET(url=trackFeaturesURL, add_headers(Authorization = HeaderValue))
+info2 <- jsonlite::fromJSON(toJSON(content(getSongFeats)))
+audio_features <- as.data.frame(info2)
+audio_feat_op <- as.data.frame(rbind(audio_feat_op,audio_features))
+
+track_str <- trackIDs[101]
+for (j in 102:200){
+        track_str <- paste(track_str, trackIDs[j], sep=",")
+}
+trackFeaturesURL <- paste("https://api.spotify.com/v1/audio-features/?ids=",
+                           track_str,
+                           sep="")
+
+getSongFeats <- GET(url=trackFeaturesURL, add_headers(Authorization = HeaderValue))
+info2 <- jsonlite::fromJSON(toJSON(content(getSongFeats)))
+audio_features <- as.data.frame(info2)
+audio_feat_op <- as.data.frame(rbind(audio_feat_op,audio_features))
+
+track_str <- trackIDs[201]
+for (j in 202:300){
+        track_str <- paste(track_str, trackIDs[j], sep=",")
+}
+trackFeaturesURL <- paste("https://api.spotify.com/v1/audio-features/?ids=",
+                           track_str,
+                           sep="")
+
+getSongFeats <- GET(url=trackFeaturesURL, add_headers(Authorization = HeaderValue))
+info2 <- jsonlite::fromJSON(toJSON(content(getSongFeats)))
+audio_features <- as.data.frame(info2)
+audio_feat_op <- as.data.frame(rbind(audio_feat_op,audio_features))
+
+track_str <- trackIDs[301]
+for (j in 302:400){
+        track_str <- paste(track_str, trackIDs[j], sep=",")
+}
+trackFeaturesURL <- paste("https://api.spotify.com/v1/audio-features/?ids=",
+                           track_str,
+                           sep="")
+
+getSongFeats <- GET(url=trackFeaturesURL, add_headers(Authorization = HeaderValue))
+info2 <- jsonlite::fromJSON(toJSON(content(getSongFeats)))
+audio_features <- as.data.frame(info2)
+audio_feat_op <- as.data.frame(rbind(audio_feat_op,audio_features))
+
+track_str <- trackIDs[401]
+for (j in 402:500){
+        track_str <- paste(track_str, trackIDs[j], sep=",")
+}
+trackFeaturesURL <- paste("https://api.spotify.com/v1/audio-features/?ids=",
+                           track_str,
+                           sep="")
+
+getSongFeats <- GET(url=trackFeaturesURL, add_headers(Authorization = HeaderValue))
+info2 <- jsonlite::fromJSON(toJSON(content(getSongFeats)))
+audio_features <- as.data.frame(info2)
+audio_feat_op <- as.data.frame(rbind(audio_feat_op,audio_features))
+
+track_str <- trackIDs[501]
+for (j in 502:582){
+        track_str <- paste(track_str, trackIDs[j], sep=",")
+}
+trackFeaturesURL <- paste("https://api.spotify.com/v1/audio-features/?ids=",
+                           track_str,
+                           sep="")
+
+getSongFeats <- GET(url=trackFeaturesURL, add_headers(Authorization = HeaderValue))
+info2 <- jsonlite::fromJSON(toJSON(content(getSongFeats)))
+audio_features <- as.data.frame(info2)
+audio_feat_op <- as.data.frame(rbind(audio_feat_op,audio_features))
+song_feat <- as.data.frame(cbind(name_track,audio_feat_op))
+rownames(song_feat) <- 1:nrow(song_feat)
+colnames(song_feat)[1] <- "Title"
+```
+
+## Importing the songs to be analysed
+
+The list of songs that were to be analysed based and determine its stand on succesfulness in Billboard is imported and the songs that were not on Spotify were removed from our file.
+
+```{r Import song-list,echo=FALSE}
+song_list <- read.csv("C:/Users/Raghavendran/Documents/UN 5550/song-list.csv")
+song_list <- song_list[order(song_list[,1]),]
+rownames(song_list) <- 1:nrow(song_list)
+```
+
+```{r Missing data,echo=TRUE}
+song_list <- song_list[-c(1,19,96,102,189,295,339,345,498,507,519,591),]
+rownames(song_list) <- 1:nrow(song_list)
+song_list$Title <- gsub( "[^[:alnum:],]", " ", song_list$Title )
+song_feat$Title <- gsub( "[^[:alnum:],]", " ", song_feat$Title )
+```
+
+## Merging songs list with their features 
+
+The song file and the songs from the spotify playlist are merged on the basis of the title.
+
+```{r Merge data,echo=TRUE}
+songs <- unique(stringdist_inner_join(stringdist_semi_join(song_list,song_feat,by=c("Title","Artist"),max_dist=200),stringdist_semi_join(song_feat,song_list,by=c("Title","Artist"),max_dist=200),by=c('Title','Artist')))
+
+songs <- data.frame(songs$Title.x,songs$Artist.x,songs$Peak,as.Date(songs$Date.Entered,format = '%m/%d/%y'),as.factor(songs$Successful),songs$Title.y,as.character(songs$TrackID),songs$Artist.y,unlist(songs$audio_features.danceability),unlist(songs$audio_features.energy),unlist(songs$audio_features.key),unlist(songs$audio_features.loudness),as.factor(unlist(songs$audio_features.mode)),unlist(songs$audio_features.speechiness),unlist(songs$audio_features.acousticness),unlist(songs$audio_features.instrumentalness),unlist(songs$audio_features.liveness),unlist(songs$audio_features.valence),unlist(songs$audio_features.tempo),unlist(songs$audio_features.type),unlist(songs$audio_features.id),unlist(songs$audio_features.uri),unlist(songs$audio_features.track_href),unlist(songs$audio_features.analysis_url),unlist(songs$audio_features.duration_ms),as.factor(unlist(songs$audio_features.time_signature)))
+
+songs <- setNames(songs, c("Title x","Artist x","Peak","Date Entered","Successfulness","Title y","Track ID","Artist y","Danceability","Energy","Key","Loudness","Mode","Speechiness","Acousticness","Instrumentalness","Liveliness","Valence","Tempo","Type","ID","URI","Track_href","Analysis_url","Duration","TimeSignature"))
+```
+
+## Determining the structure of the songs data
+
+The structure of the songs data can be analysed by using the str() function which displays the classes of each column.
+
+```{r Structure of song Features,echo=TRUE}
+str(head(songs,1))
+
+```
+
+From the structure of song data, we find that the audio features of numeric datatype are Danceability, Energy, acousticness, Valence, tempo, Instrumentalness, Speechiness, loudness, liveness, peak and duration of the song.
+The categorical values are succesfulness, mode, key and time signature.
+
+## Plotting the histogram with 8 and 16 bins
+
+The histogram is one of the effective ways of visualizing numeric data. Here, the histograms of various audio features of numeric type are plotted with different bins such as 8 and 16.
+
+```{r Histogram function,echo=FALSE}
+Histo <- function(x,y,z){
+        hist(as.numeric(x),main=paste0('Histogram of ',y),xlab=paste0(y),col='blue',breaks = z)
+}
+
+```
+```{r Histogram with 8 breaks,echo=FALSE}
+par(mfrow=c(1,2))
+Histo(songs$Peak,"Peak",8)
+Histo(songs$Danceability,"Danceability",8)
+Histo(songs$Energy,"Energy",8)
+Histo(songs$Loudness,"Loudness",8)
+Histo(songs$Speechiness,"Speechiness",8)
+Histo(songs$Acousticness,"Acousticness",8)
+Histo(songs$Instrumentalness,"Instrumentalness",8)
+Histo(songs$Liveliness,"Liveliness",8)
+Histo(songs$Valence,"Valence",8)
+Histo(songs$Tempo,"Tempo",8)
+Histo(songs$Duration,"Duration",8)
+```
+```{r Histogram with 16 breaks,echo=FALSE}
+par(mfrow=c(1,2))
+Histo(songs$Danceability,"Danceability",16)
+Histo(songs$Energy,"Energy",16)
+Histo(songs$Loudness,"Loudness",16)
+Histo(songs$Speechiness,"Speechiness",16)
+Histo(songs$Acousticness,"Acousticness",16)
+Histo(songs$Instrumentalness,"Instrumentalness",16)
+Histo(songs$Liveliness,"Liveliness",16)
+Histo(songs$Valence,"Valence",16)
+Histo(songs$Tempo,"Tempo",16)
+Histo(songs$Duration,"Duration",16)
+```
+
+## Plotting Stacked histogram based on Succesfulness
+
+The stacked histograms for the numerical values in songs data are plotted with regards to the succesfulness of the song.
+
+```{r Stacked Histogram,echo=FALSE}
+par(mfrow=c(1,2))
+Successfulness = as.factor(songs$Successfulness)
+ggplot(melt(as.numeric(songs$Peak)),aes(x=as.numeric(songs$Peak),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 2.5) + labs(title = "Histogram of Peak with respect to Successfulness") + xlab("Peak")
+
+ggplot(melt(as.numeric(songs$Danceability)),aes(x=as.numeric(songs$Danceability),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 0.01) + labs(title = "Histogram of Danceability with respect to Successfulness") + xlab("Danceability")
+
+ggplot(melt(as.numeric(songs$Energy)),aes(x=as.numeric(songs$Energy),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 0.01) + labs(title = "Histogram of Energy with respect to Successfulness") + xlab("Energy")
+
+ggplot(melt(as.numeric(songs$Loudness)),aes(x=as.numeric(songs$Loudness),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 0.3) + labs(title = "Histogram of loudness with respect to Successfulness") + xlab("loudness")
+
+ggplot(melt(as.numeric(songs$Speechiness)),aes(x=as.numeric(songs$Speechiness),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 0.05) + labs(title = "Histogram of speechiness with respect to Successfulness") + xlab("speechiness")
+
+ggplot(melt(as.numeric(songs$Acousticness)),aes(x=as.numeric(songs$Acousticness),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 0.05) + labs(title = "Histogram of acousticness with respect to Successfulness") + xlab("acousticness")
+
+ggplot(melt(as.numeric(songs$Instrumentalness)),aes(x=as.numeric(songs$Instrumentalness),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 0.2) + labs(title = "Histogram of instrumentalness with respect to Successfulness") + xlab("instrumentalness")
+
+ggplot(melt(as.numeric(songs$Liveliness)),aes(x=as.numeric(songs$Liveliness),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 0.1) + labs(title = "Histogram of liveness with respect to Successfulness") + xlab("liveness")
+
+ggplot(melt(as.numeric(songs$Valence)),aes(x=as.numeric(songs$Valence),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 0.1) + labs(title = "Histogram of valence with respect to Successfulness") + xlab("valence")
+
+ggplot(melt(as.numeric(songs$Tempo)),aes(x=as.numeric(songs$Tempo),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 10) + labs(title = "Histogram of tempo with respect to Successfulness") + xlab("tempo")
+
+ggplot(melt(as.numeric(songs$Duration)),aes(x=as.numeric(songs$Duration),fill= Successfulness)) + geom_histogram(position="stack",binwidth = 10000) + labs(title = "Histogram of duration in millisecond with respect to Successfulness") + xlab("duration ms")
+
+```
+
+Inference: 
+
+1. We can see that for peak and succesfulness, the songs which peaks in top 11 are considered successful and the songs which are after that are considered unsuccessful.
+
+2. The Danceability of successful songs are significantly high between 0.5 and 0.9 whereas the is no signifacnt difference between sucessful and unsuccessful songs at lower danceability rates.
+
+3. The speechiness and acousticness are near to 0 for most songs and the count is high for succesful songs.
+
+## Plotting of stacked Boxplots based on Succesfulness 
+
+The stacked boxplots for the numerical values in songs data are plotted with regards to the succesfulness of the song.
+
+```{r Stacked boxplot,echo=FALSE}
+boxplt <- function(y,ylab){
+        boxplot(y ~ songs$Successfulness,col=c('red','blue'),xlab='Successfulness',ylab=paste0(ylab),main=paste0('Boxplot of ',ylab))
+}
+
+par(mfrow=c(1,2))
+
+boxplt(songs$Peak,'Peak')
+
+boxplt(songs$Danceability,'Danceability')
+
+boxplt(songs$Energy,'Energy')
+
+boxplt(songs$Loudness,'Loudness')
+
+boxplt(songs$Speechiness,'Speechiness')
+
+boxplt(songs$Acousticness,'Acousticness')
+
+boxplot(songs$Instrumentalness ~ songs$Successfulness,ylab='Instrumentalness',xlab='Succesfulness',ylim=c(0,0.00002),main='Boxplot of Instrumentalness',col=c('red','blue'))
+
+boxplt(songs$Liveliness,'Liveness')
+
+boxplt(songs$Valence,'Valence')
+
+boxplt(songs$Tempo,'Tempo')
+
+boxplt(songs$Duration,'Duration')
+
+```
+
+Inferences:
+1. The median of Peak for successful songs lies around 5 which indicates that most of the songs had hit the 5th position in the Billboard chart. The peak value for the unsuccessful songs lies around 35 with possible outliers at 15 which can be rated as quite popular but not a hit.
+
+2. The median to the danceability feature of songs are in the range of 0.7 which refers to good value with respect to succesfulness.
+
+3. The energy for succesful and unsuccesful songs doesn't differ quite much and the median values are almost same.
+
+4. A good valence value accounts to the song being more succesful. The median value for a succesful song with regards to valence is 0.56.
+
+5. The tempo of the song lies around 90 for succesful song which accounts for good beats to make the music enjoyable.
+
+## Barplots based on categorical values
+
+The analysis of categorical values for audio features of a song is best plotted by barplots. Here, the catgorical audio features such as mode, succesfulness, key and time signature are plotted.
+
+```{r Bar plot,echo=FALSE}
+par(mfrow=c(1,2))
+barplot(table(as.character(songs$Key)),col="green",main="Barplot of key",xlab="keys",ylab="counts")
+
+barplot(table(as.character(songs$Successfulness)),col=c("red","blue"),main="Barplot of audio with Succesful counts",xlab="Successfulness",ylab="counts")
+
+barplot(table(as.character(songs$Mode)),main="Barplot of mode",xlab="Mode",ylab="counts",col=c("green","violet"))
+
+barplot(table(as.character(songs$TimeSignature)),xlab="Time signature",ylab="counts",main="Barplot of Time signature",col="yellow")
+```
+
+## Stacked barplots based on Succesfulness
+
+The stacked barplot is a way of plotting the categorical values with regards to succesfulness of a song.
+
+```{r Stacked Barplot,echo=FALSE}
+par(mfrow=c(1,2))
+ggplot(melt(as.character(songs$Key)),aes(x=as.character(songs$Key),fill= Successfulness)) + geom_bar(position="stack") + labs(title = "Barplot of Key with respect to Successfulness") + xlab("Key")
+
+ggplot(melt(as.character(songs$Mode)),aes(x=as.character(songs$Mode),fill= Successfulness)) + geom_bar(position="stack") + labs(title = "Barplot of Mode with respect to Successfulness") + xlab("Mode")
+
+ggplot(melt(as.character(songs$TimeSignature)),aes(x=as.character(songs$TimeSignature),fill= Successfulness)) + geom_bar(position="stack") + labs(title = "Barplot of Time signature with respect to Successfulness") + xlab("Time Signature")
+```
+
+Inferences:
+1. The mode of most of the songs are 1 where the successful songs having mode as 1 are higher than that of the unsuccesful songs.
+
+2. The time signature for most of the songs are 4.
+
+## Pairwise Analysis on Audio features
+
+The pairwise analysis is done based on comparison of two audio features and bringing out the relationship between them. Here the pariwise analysis of speechiness and acousticness; energy and valence; danceability and tempo and peak and successfulness are plotted.
+
+```{r Pairwise Analysis,echo=FALSE}
+pairs(cbind(as.numeric(songs$Speechiness),as.numeric(songs$Acousticness)),labels=c("Speechiness","Acousticness"),main="Analysis of speechiness and acousticness")
+
+pairs(cbind(as.numeric(songs$Energy),as.numeric(songs$Valence)),labels=c("Energy","Valence"),main="Analysis of Energy and valence")
+
+pairs(cbind(as.numeric(songs$Danceability),as.numeric(songs$Tempo)),labels=c("Danceability","Tempo"),main="Analysis of danceability and tempo")
+
+pairs(cbind(as.numeric(songs$Peak),as.numeric(songs$Successfulness)),labels=c("Peak","Succesful"),main="Analysis of Peak and Successful")
+```
+
+Inferences:
+1. The speechiness and acousticness are similar in points being plotted. Most of the songs have speechiness and acousticness less than 0.1 and gradually spreads out at 0.1,0.2 and 0.3.
+
+2. The more the energy, more is the valence for a song. Most of the songs have energy and valence features around 0.6 to 1.0.
+
+3. The tempo of the music i.e the beats determin the bass of the song which also determines the dance moves that occur. Most of the songs with tempo around 90 to 100 have higher danceablity rates of more than 0.6 to 1.0 .
+
+4. The pairwise analysis of peak and succesfulness often determines how the sngs have reached out when it hits the top of the billboard charts. The peaks of 1 to 10 determin the success rate of the song as most successfull. The songs of peak above 11 have moderate success and the unsuccesful songs are placed mostly in the 30 to 40th position in billboard.
+
+## Prediction of Successfulness of songs
+
+The successfulness of the songs cn be predicted as supervised learning i.e classification. In Classification, the songs are classified using labels, '0' which denotes unsuccessful and '1' which denotes successful. One part of the song dataset is trained according to the classification models and the other part of the data set acts as test dataset. By the method of cross validation and classification models, prediction of successful and unsuccesful songs are made.
+
+```{r Libraries}
+#install.packages("rplot.part")
+library(rpart.plot)
+#install.packages("ROCR")
+library(ROCR)
+#install.packages("e1071")
+library(e1071)
+library(class)
+```
+
+## Decision tree
+The decision tree is one of the classification model which partitions data according to class. This supervised learning model uses recursive partioning function which partitions the succesfulness of the song recursively according to its features. The decision tree can also be pruned to avoid overfitting the dataset and can be shown.
+
+The decision tree partions from the root node which can be any of the features of the song to branch out leaf nodes according to yes/no condition. For example, in the songs dataset, the audio feature, Danceability is the root node which partions itself based on succesfulness of the song i.e if the Danceability is less or greater than 0.68, it branches out into two leaf nodes based on the condition.
+
+```{r Decision tree}
+dtree <- function(x){
+       n <- nrow(songs)
+shuffled <- songs[sample(n),]
+set.seed(1)
+accs <- rep(0,x)
+for (i in 1:x)
+{
+        indices <- (((i-1) * round((1/x)*nrow(shuffled))) + 1):((i*round((1/x) * nrow(shuffled))))
+        train <- shuffled[-indices,]
+        test <- shuffled[indices,]
+        tree <- rpart(Successfulness ~ Danceability+Energy+Key+Loudness+Mode+Speechiness+Acousticness+Instrumentalness+Liveliness+Valence+Tempo+Duration+TimeSignature, train, method = "class")
+        pred <- predict(tree,test,type="class")
+        conf <- table(test$Successfulness,pred)
+        accs[i] <- sum(diag(conf))/sum(conf)
+        accs[i]
+        par(mfrow=c(1,2))
+        prp(tree)
+        pruned <- prune(tree,cp=tree$cptable[which.min(tree$cptable[,"xerror"]),"CP"])
+        prp(pruned)
+}
+mean(accs) 
+}
+dtree(10)
+```
+
+## K Nearest Neighbours
+
+K Nearest Neighbour is another classification model which predicts the test song based on the Kth nearest neighbour(Euclidean Distance) from the training dataset. Based on K values, the Euclidean distance of test dataset is measured from the K nearest neighbours of training dataset and classified as Successful or unsuccessful accordingly. The audio features are normalized to fit the scale and avoid Scaling issue.
+Here the Kvalue is determined by a certain range of values with regards to training dataset. The k value with the highest accuracy (as shown in plots) is taken for every iteration (cross validation) and the accuracies are found out for every iteration. The mean of accuracy is calculated.
+
+```{r knn}
+m <- nrow(songs)
+shuffled <- songs[sample(m),]
+set.seed(1)
+accs <- rep(0,10)
+for(i in 1:10){
+indices <- (((i-1) * round((1/10)*nrow(shuffled))) + 1):((i*round((1/10) * nrow(shuffled))))
+train <- shuffled[-indices,]
+test <- shuffled[indices,]
+# Normalizing key
+min_Key <- min(train$Key)
+max_Key <- max(train$Key)
+train$Key <- (train$Key - min_Key) / (max_Key - min_Key)
+test$Key <- (test$Key - min_Key) / (max_Key - min_Key)
+
+# Normalizing Loudness
+min_Loud <- min(train$Loudness)
+max_Loud <- max(train$Loudness)
+train$Loudness <- (train$Loudness - min_Loud) / (max_Loud - min_Loud)
+test$Loudness <- (test$Loudness - min_Loud) / (max_Loud - min_Loud)
+
+#Normailizing Tempo
+min_Tempo <- min(train$Tempo)
+max_Tempo <- max(train$Tempo)
+train$Tempo <- (train$Tempo - min_Tempo) / (max_Tempo - min_Tempo)
+test$Tempo <- (test$Tempo - min_Tempo) / (max_Tempo - min_Tempo)
+
+# Normailizing Duration
+min_Dur <- min(train$Duration)
+max_Dur <- max(train$Duration)
+train$Duration <- (train$Duration - min_Dur) / (max_Dur - min_Dur)
+test$Duration <- (test$Duration - min_Dur) / (max_Dur - min_Dur)
+
+#Normalizing Time signature
+min_time <- min(as.numeric(train$TimeSignature))
+max_time <- max(as.numeric(train$TimeSignature))
+train$TimeSignature <- (as.numeric(train$TimeSignature) - min_time) / (max_time - min_time)
+test$TimeSignature <- (as.numeric(test$TimeSignature) - min_time) / (max_time - min_time)
+
+train_labels <- as.factor(train[,5])
+test_labels <- as.factor(test[,5])
+
+knn_train <- train
+knn_test <- test
+
+knn_train$Successfulness <- NULL
+knn_test$Successfulness <- NULL
+
+range <- 1:round(0.2 * nrow(knn_train))
+accsk <- rep(0, length(range))
+for (k in range) {
+        predk <- knn(train = knn_train[,c(8:18,24,25)], test = knn_test[,c(8:18,24,25)], cl = train_labels, k = k)
+        confk <- table(test_labels,predk)
+        accsk[k] <- sum(diag(confk))/sum(confk)
+        
+}
+
+plot(range, accsk, xlab = "k",ylab="Accuracy",type='l')
+pred <- knn(train=knn_train[,c(8:18,24,25)], test = knn_test[,c(8:18,24,25)], cl = train_labels,k=which.max(accsk))
+conf <- table(test_labels,pred)
+accs[i] <- sum(diag(conf))/sum(conf)
+mean_acc <- mean(accs)
+}
+mean_acc
+```
+
+## Naive Bayes
+
+Naive Bayes is based on Bayes Theorem which denotes that the probability of one set is based on the conditional probablity of another set. Naive Bayes comes with strong independence assumptions. Here the probability of succesfulness of the songs, whether it is successful or unsuccessful is based on the conditional probablities of audio features such as Danceabiltiy, Energy, Valence etc.
+Here the ROC curve denotes the true positive rates against false positive rates.
+
+```{r naive Bayes}
+nb <- function(y){
+       p <- nrow(songs)
+shuffled <- songs[sample(p),]
+set.seed(1)
+accs <- rep(0,y)
+for (i in 1:y)
+{
+        indices <- (((i-1) * round((1/y)*nrow(shuffled))) + 1):((i*round((1/y) * nrow(shuffled))))
+        train <- shuffled[-indices,]
+        test <- shuffled[indices,]
+# Normalizing key
+min_Key <- min(train$Key)
+max_Key <- max(train$Key)
+train$Key <- (train$Key - min_Key) / (max_Key - min_Key)
+test$Key <- (test$Key - min_Key) / (max_Key - min_Key)
+
+# Normalizing Loudness
+min_Loud <- min(train$Loudness)
+max_Loud <- max(train$Loudness)
+train$Loudness <- (train$Loudness - min_Loud) / (max_Loud - min_Loud)
+test$Loudness <- (test$Loudness - min_Loud) / (max_Loud - min_Loud)
+
+#Normailizing Tempo
+min_Tempo <- min(train$Tempo)
+max_Tempo <- max(train$Tempo)
+train$Tempo <- (train$Tempo - min_Tempo) / (max_Tempo - min_Tempo)
+test$Tempo <- (test$Tempo - min_Tempo) / (max_Tempo - min_Tempo)
+
+# Normailizing Duration
+min_Dur <- min(train$Duration)
+max_Dur <- max(train$Duration)
+train$Duration <- (train$Duration - min_Dur) / (max_Dur - min_Dur)
+test$Duration <- (test$Duration - min_Dur) / (max_Dur - min_Dur)
+
+#Normalizing Time signature
+min_time <- min(as.numeric(train$TimeSignature))
+max_time <- max(as.numeric(train$TimeSignature))
+train$TimeSignature <- (as.numeric(train$TimeSignature) - min_time) / (max_time - min_time)
+test$TimeSignature <- (as.numeric(test$TimeSignature) - min_time) / (max_time - min_time)
+        
+nb_model <- naiveBayes(Successfulness ~ Danceability+Energy+Key+Loudness+Mode+Speechiness+Acousticness+Instrumentalness+Liveliness+Valence+Tempo+Duration+TimeSignature, train)
+pred <- predict(nb_model,test,type = "class")
+conf <- table(test$Successfulness,pred)
+accs[i] <- sum(diag(conf))/sum(conf)
+
+# ROC Curve
+nb.pred <- prediction(as.numeric(pred), as.numeric(test$Successfulness))
+nb.roc.perf <- performance(nb.pred, "tpr", "fpr")
+plot(nb.roc.perf,xlab="False positive rate",ylab="True positive rate")
+}
+mean(accs)
+}
+nb(10)
+```
+
+Conclusion:
+The analysis of various audio features for a set of songs during the late 2000's period which had appeared in the Billboard chart shows that most succesful songs have higher danceability level of 0.6 and more and tempo of 90 with an adequate energy level which often hits the top 10 position in the Billboard chart.
+The successfulness of songs is prediction of the test data sets from songs against the trained datasets by the means of classification method i.e Supervised Learning by Decision tree, K Nearest Neighbours and Naive Bayes models. The accuracy of decision tree(0.68) is better than the other two models.
