@@ -1,0 +1,93 @@
+---
+title: "World_Happiness_report"
+author: "Raghavendran Shankar"
+date: "19 March 2017"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading dataset and libraries
+
+```{r Dataset and Libraries}
+library(ggplot2)
+library(ggrepel)
+library(reshape2)
+library(GGally)
+happy_2015 <- read.csv('2015.csv')
+str(head(happy_2015))
+```
+
+## Data Visualization with ggplots and geom points
+
+```{r Data Visualization}
+
+# ggplot for various features of Country across Happiness score
+ggplot(data = happy_2015,aes(y = Happiness.Score,x = Economy..GDP.per.Capita.))+geom_point()+labs(title = "GGPlot of Happiness Score with GDP")
+ggplot(data = happy_2015,aes(y = Happiness.Score,x = Family))+geom_point()+labs(title = "GGPlot of Happiness Score with Family")
+ggplot(data = happy_2015,aes(y = Happiness.Score,x = Health..Life.Expectancy.))+geom_point()+labs(title = "GGPlot of Happiness Score with Life expectancy")
+ggplot(data = happy_2015,aes(y = Happiness.Score,x = Freedom))+geom_point()+labs(title = "GGPlot of Happiness Score with Freedom")
+ggplot(data = happy_2015,aes(y = Happiness.Score,x = Trust..Government.Corruption.))+geom_point()+labs(title = "GGPlot of Happiness Score with Corruption")
+ggplot(data = happy_2015,aes(y = Happiness.Score,x = Generosity))+geom_point()+labs(title = "GGPlot of Happiness Score with Generosity")
+ggplot(data = happy_2015,aes(y = Happiness.Score,x = Dystopia.Residual))+geom_point()+labs(title = "GGPlot of Happiness Score with Dystopia")
+
+# Inference: There is a strong positive increase in trend between features like GDP growth, Life expectancy, Freedom and Family with Happiness score.
+```
+
+## Data Visualization with ggplots and geom histogram
+
+```{r}
+ggplot(melt(as.numeric(happy_2015$Happiness.Score)),aes(x=as.numeric(happy_2015$Happiness.Score),fill= happy_2015$Region)) + geom_histogram(position="stack",binwidth = 1) + labs(title = "Histogram of Happiness score with respect to Region") + xlab("Happiness Score") +ylab("Number of countries in the region")
+# Happiness score is more in Western Europe, Australia and North America and less in Middle East and Sub Saharan Africa
+
+ggplot(melt(as.numeric(happy_2015$Economy..GDP.per.Capita.)),aes(x=as.numeric(happy_2015$Economy..GDP.per.Capita.),fill= happy_2015$Region)) + geom_histogram(position="stack",binwidth = 0.5) + labs(title = "Histogram of GDP growth with respect to Region") + xlab("GDP Growth") +ylab("Number of countries in the region")
+# GDP Growth is more in Western Europe and North America, Australia and NewZealand and less in some parts of Latin America, southern Asia and very less in Sub-Saharan Africa
+
+ggplot(melt(as.numeric(happy_2015$Family)),aes(x=as.numeric(happy_2015$Family),fill= happy_2015$Region)) + geom_histogram(position="stack",binwidth = 0.1) + labs(title = "Histogram of Family Growth and Prosperity with respect to Region") + xlab("Family Growth and Prosperity") +ylab("Number of countries in the region")
+# Family growth and prosperity is seen most in Western Europe, North America, some parts of SouthEastern Asia and Australia and NewZealand followed by major parts in Latin America, Middle East and Central Europe.
+
+ggplot(melt(as.numeric(happy_2015$Health..Life.Expectancy.)),aes(x=as.numeric(happy_2015$Health..Life.Expectancy.),fill= happy_2015$Region)) + geom_histogram(position="stack",binwidth = 0.1) + labs(title = "Histogram of Health Life Expectancy with respect to Region") + xlab("Health Life Expectancy") +ylab("Number of countries in the region")
+# Health Life Expectancy is the best in Western Europe, some parts of Eastern Asia, Australia and North America followed by Central and Eastern Europe. The least health expectancy rate lies in Sub-Sharan Africa region
+
+ggplot(melt(as.numeric(happy_2015$Freedom)),aes(x=as.numeric(happy_2015$Freedom),fill= happy_2015$Region)) + geom_histogram(position="stack",binwidth = 0.06) + labs(title = "Histogram of Freedom with respect to Region") + xlab("Freedom") +ylab("Number of countries in the region")
+#Freedom is more prevalent in Western Europe, North America, South Eastern Asia and Australia followed by major parts of Latin America. The countries which does not contribute towards freedom are Iraq and Greece.
+
+ggplot(melt(as.numeric(happy_2015$Trust..Government.Corruption.)),aes(x=as.numeric(happy_2015$Trust..Government.Corruption.),fill= happy_2015$Region)) + geom_histogram(position="stack",binwidth = 0.07) + labs(title = "Histogram of Corruption rate with respect to Region") + xlab("Corruption rate") +ylab("Number of countries in the region")
+
+ggplot(melt(as.numeric(happy_2015$Generosity)),aes(x=as.numeric(happy_2015$Generosity),fill= happy_2015$Region)) + geom_histogram(position="stack",binwidth = 0.05) + labs(title = "Histogram of Generosity with respect to Region") + xlab("Generosity") +ylab("Number of countries in the region")
+
+ggplot(melt(as.numeric(happy_2015$Dystopia.Residual)),aes(x=as.numeric(happy_2015$Dystopia.Residual),fill= happy_2015$Region)) + geom_histogram(position="stack",binwidth = 0.3) + labs(title = "Histogram of Corruption rate with respect to Region") + xlab("Dystopia Residual") +ylab("Number of countries in the region")
+
+```
+
+## Data Visualization and Correlation
+
+```{r Data Visualization and Correlation}
+ggpairs(data = happy_2015,columns = c(4,6:12))
+# From the correlation, it is seen that Happiness score strongly depends on GDP, Family and Life expectancy of which all the three are directly peopotional to the happiness score. The weak corrleations are Government corruption and Generosity.
+```
+
+## Linear Regression Model for Happiness Score on 2015 dataset
+
+```{r Linear Regression Model for Happiness Score on 2015 dataset}
+happy_part_2015 <- happy_2015[c(-1,-2,-3,-5)]
+lm_model <- lm(formula = Happiness.Score ~.,data = happy_part_2015)
+summary(lm_model)
+# The summary model has Adjusted r-squared value of 1 which is 100% accurate model. All the predictors are significant with response variable(Happiness score).
+```
+
+## Prediction of Linear model on 2016 dataset
+
+```{r Prediction of Linear model on 2016 dataset}
+happy_2016 <- read.csv('2016.csv')
+pred_2016 <- predict(object = lm_model,newdata = happy_2016[7:13])# Predict Happiness score for 2016 data
+pred_2016
+plot(happy_2016$Happiness.Score,pred_2016) # Compares the actual 2016 data with the predicted data
+
+#Conclusion: The Multiple linear regression model works perfect on 2015 data and is able to predict the happiness score of 2016 data.
+```
+
