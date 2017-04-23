@@ -1,0 +1,474 @@
+---
+title: "Analysis of NFL data"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The National Football league is a professional American football league consiting of 32 teams. The NFL's 17-week regular season runs from the week after Labor Day to the week after Christmas with each team playing 16 games.
+
+Here, the analysis of NFL data for a set of players from various teams played in 2012, 2013, 2014 and 2015 seasons are made. Each player has information with regards to his team name, number of games played, touchdown, Interception, Yrds, Attempts,completion percentage and Quarterback ratings across all four seasons. 
+
+```{r Install packages,echo=FALSE}
+library(utils)
+#install.packages("randomcoloR")
+library(randomcoloR)
+#install.packages(modes)
+library(modes)
+#install.packages("ggplot2")
+library(stringr)
+library(ggplot2)
+library(reshape2)
+```
+
+## Analysis of NFL data in the year 2015
+
+```{r Read the contents of NFL 2015 data,echo=TRUE}
+
+nfl_2015 <- read.csv('C:/Users/Raghavendran/Documents/UN 5550/nfl-passing-2015.csv')
+nfl_2015_cond1 <- nfl_2015[nfl_2015$Att >=100 & nfl_2015$Yds >= 1000,]
+```
+
+## Mean, median and mode of Touchdowns and Interceptions
+
+The mean,median and mode for Touchdowns and Interceptions are calcualted
+
+```{r Mean for nfl 2015,echo=TRUE}
+nfl_2015_TD_mean <- mean(nfl_2015_cond1$TD)
+nfl_2015_Int_mean <- mean(nfl_2015_cond1$Int)
+
+print(paste("The mean of touchdown is ",nfl_2015_TD_mean))
+print(paste("The mean of Interception is ",nfl_2015_Int_mean))
+```
+```{r Median for nfl 2015,echo=TRUE}
+nfl_2015_TD_median <- median(nfl_2015_cond1$TD)
+nfl_2015_Int_median <- median(nfl_2015_cond1$Int)
+
+print(paste("The median of touchdown is ",nfl_2015_TD_median))
+print(paste("The median of Interception is ",nfl_2015_Int_median))
+```
+```{r Mode for nfl 2015,echo=TRUE}
+
+nfl_2015_TD_mode <- modes(nfl_2015_cond1$TD)[1,]
+nfl_2015_Int_mode <- modes(nfl_2015_cond1$Int)[1,]
+
+print(paste("The mode of touchdown is ",nfl_2015_TD_mode))
+print(paste("The mode of Interception is ",nfl_2015_Int_mode))
+```
+
+## Quartiles of Yards and Rate
+
+The quartiles Q1 and Q3 are calculated for Yards and Rate and plotted in a boxplot. 
+
+```{r Q1 and Q3 for nfl 2015,echo=TRUE}
+Q1_Yds <- summary(nfl_2015_cond1$Yds)[2]
+Q3_Yds <- summary(nfl_2015_cond1$Yds)[5]
+print(paste("The First and the Third quartiles of Yards are ",Q1_Yds," and ",Q3_Yds," respectively"))
+Q1_Rate <- summary(nfl_2015_cond1$Rate)[2]
+Q3_Rate <- summary(nfl_2015_cond1$Rate)[5]
+print(paste("The First and the Third quartiles of Rate are ",Q1_Rate," and ",Q3_Rate," respectively"))
+
+```
+```{r Box plot of Yards and Rate for nfl 2015,echo=TRUE}
+par(mfrow=c(1,2))
+boxplot(nfl_2015_cond1$Yds,col = "gold",main="Boxplot of Yards")
+text(1.4,2066,"Q1",col="red")
+text(1.4,4135,"Q3",col="red")
+text(1.37,3572.5,"Median",col="red")
+text(1.4,1043,"Min",col="red")
+text(1.4,4870,"Max",col="red")
+boxplot(nfl_2015_cond1$Rate,col="blue",main="Box plot of Rate")
+text(1.4,84.70,"Q1",col="red")
+text(1.4,96.45,"Q3",col="red")
+text(1.37,91.25,"Median",col="red")
+text(1.4,67.90,"Min",col="red")
+text(1.4,110.10,"Max",col="red")
+
+```
+
+## Summary of Cmp, Cmp% and Yards
+
+The five-number summary consisting of Minimum value, 1st Quartile, Median, Mean, 3rd Quartile and Maximum value are calclualet for Cmp, Cmp% and Yards and implemented in a table.
+
+```{r Summary of Cmp, Cmp. and Yds for nfl 2015, echo=TRUE}
+summary_detail <- as.data.frame(rbind(summary(nfl_2015_cond1$Cmp),summary(nfl_2015_cond1$Cmp.),summary(nfl_2015_cond1$Yds)))
+rownames(summary_detail) <- c("Cmp","Cmp%","Yds")
+print(summary_detail)
+```
+
+## Histogram of Yards
+
+The Histogram of Yards with bin sizes of 8, 16 and 24 are plotted.
+
+```{r Histogram with 8 bins for nfl 2015,echo=TRUE}
+par(mfrow=c(1,1))
+hist(nfl_2015_cond1$Yds,main="Histogram of Yards with 8 bins",col=1:8,xlab="Yards",breaks=8)
+
+```
+```{r Histogram with 16 bins for nfl 2015,echo=TRUE}
+palette(topo.colors(16))
+hist(nfl_2015_cond1$Yds,main="Histogram of Yards with 16 bins",col=palette(topo.colors(16)),xlab="Yards",breaks=16)
+
+```
+```{r Histogram with 24 bins for nfl 2015,echo=TRUE}
+palette(topo.colors(24))
+hist(nfl_2015_cond1$Yds,main="Histogram of Yards with 24 bins",col=palette(topo.colors(24)),xlab="Yards",breaks=24)
+palette("default")
+```
+
+## Comparison of Yards with Interceptions
+
+The distribution of yards according to Interceptions ang the segregation of data with respect to the consition of Interceptions less than 12 is shown.
+
+```{r Plot based on Yards with Interceptions less than 12 for nfl 2015,echo=TRUE}
+plot(nfl_2015_cond1$Int,nfl_2015_cond1$Yds,main='Plot of Interceptions vs Yards',xlim = c(0,20),col=ifelse(nfl_2015_cond1$Int<12,"red","blue"),xlab="Interceptions",ylab="Yards")
+axis(1,seq(10,20,by=2))
+segments(x0 = 12,y0 = 1000,y1=5000,lty=2,col = "brown")
+```
+
+Conclusion: The yards range from '1000' to '5000' for Interceptions less than 12. For Interceptions greater than 12, the yards are above 3500 with an outlier in the range of 2200.
+
+## Touchdowns Vs Interceptions
+
+The touchdown and Interceptions plot is shown
+
+```{r Plot on touchdown vs interceptions for nfl 2015,echo=TRUE}
+plot(nfl_2015_cond1$TD,nfl_2015_cond1$Int,main='Plot of Touchdowns vs Interceptions',xlab="Touchdown",ylab="Interceptions",col="brown")
+```
+
+
+
+
+## Analysis of NFL data in the year 2014
+
+
+
+```{r Read the contents of NFL 2014 data,echo=TRUE}
+
+library(utils)
+nfl_2014 <- read.csv('C:/Users/Raghavendran/Documents/UN 5550/nfl-passing-2014.csv')
+nfl_2014_cond1 <- nfl_2014[nfl_2014$Att >=100 & nfl_2014$Yds >= 1000,]
+```
+
+## Mean, median and mode of Touchdowns and Interceptions
+
+The mean,median and mode for Touchdowns and Interceptions are calcualted
+
+```{r Mean for nfl 2014,echo=TRUE}
+nfl_2014_TD_mean <- mean(nfl_2014_cond1$TD)
+nfl_2014_Int_mean <- mean(nfl_2014_cond1$Int)
+
+print(paste("The mean of touchdown is ",nfl_2014_TD_mean))
+print(paste("The mean of Interception is ",nfl_2014_Int_mean))
+```
+```{r Median for nfl 2014,echo=TRUE}
+nfl_2014_TD_median <- median(nfl_2014_cond1$TD)
+nfl_2014_Int_median <- median(nfl_2014_cond1$Int)
+
+print(paste("The median of touchdown is ",nfl_2014_TD_median))
+print(paste("The median of Interception is ",nfl_2014_Int_median))
+```
+```{r Mode for nfl 2014,echo=TRUE}
+nfl_2014_TD_mode <- modes(nfl_2014_cond1$TD)[1,]
+nfl_2014_Int_mode <- modes(nfl_2014_cond1$Int)[1,]
+
+print(paste("The mode of touchdown is ",nfl_2014_TD_mode))
+print(paste("The mode of Interception is ",nfl_2014_Int_mode))
+```
+
+## Quartiles of Yards and Rate
+
+The quartiles Q1 and Q3 are calculated for Yards and Rate and plotted in a boxplot. 
+
+```{r Q1 and Q3 for nfl 2014,echo=TRUE}
+Q1_Yds <- summary(nfl_2014_cond1$Yds)[2]
+Q3_Yds <- summary(nfl_2014_cond1$Yds)[5]
+print(paste("The First and the Third quartiles of Yards are ",Q1_Yds," and ",Q3_Yds," respectively"))
+Q1_Rate <- summary(nfl_2014_cond1$Rate)[2]
+Q3_Rate <- summary(nfl_2014_cond1$Rate)[5]
+print(paste("The First and the Third quartiles of Rate are ",Q1_Rate," and ",Q3_Rate," respectively"))
+
+```
+```{r Box plot for yards and rate for nfl 2014,echo=TRUE}
+par(mfrow=c(1,2))
+boxplot(nfl_2014_cond1$Yds,col = "gold",main="Boxplot of Yards")
+text(1.4,2082,"Q1",col="red")
+text(1.4,4077,"Q3",col="red")
+text(1.37,3265,"Median",col="red")
+text(1.4,1057,"Min",col="red")
+text(1.4,4952,"Max",col="red")
+boxplot(nfl_2014_cond1$Rate,col="blue",main="Box plot of Rate")
+text(1.4,83.45,"Q1",col="red")
+text(1.4,95.15,"Q3",col="red")
+text(1.37,87.80,"Median",col="red")
+text(1.4,69.50,"Min",col="red")
+text(1.4,113.20,"Max",col="red")
+
+```
+
+## Summary of Cmp, Cmp% and Yards
+
+The five-number summary consisting of Minimum value, 1st Quartile, Median, Mean, 3rd Quartile and Maximum value are calclualet for Cmp, Cmp% and Yards and implemented in a table.
+
+```{r Summary of Cmp, Cmp. and Yds for nfl 2014, echo=TRUE}
+summary_detail <- as.data.frame(rbind(summary(nfl_2014_cond1$Cmp),summary(nfl_2014_cond1$Cmp.),summary(nfl_2014_cond1$Yds)))
+rownames(summary_detail) <- c("Cmp","Cmp%","Yds")
+print(summary_detail)
+```
+
+## Histogram of Yards
+
+The Histogram of Yards with bin sizes of 8, 16 and 24 are plotted.
+
+```{r Histogram with 8 bins for nfl 2014,echo=TRUE}
+par(mfrow=c(1,1))
+hist(nfl_2014_cond1$Yds,main="Histogram of Yards with 8 bins",col=1:8,xlab="Yards",breaks=8)
+
+```
+```{r Histogram with 16 bins for nfl 2014,echo=TRUE}
+palette(topo.colors(16))
+hist(nfl_2014_cond1$Yds,main="Histogram of Yards with 16 bins",col=palette(topo.colors(16)),xlab="Yards",breaks=16)
+
+```
+```{r Histogram with 24 bins for nfl 2014,echo=TRUE}
+palette(topo.colors(24))
+hist(nfl_2014_cond1$Yds,main="Histogram of Yards with 24 bins",col=palette(topo.colors(24)),xlab="Yards",breaks=24)
+palette("default")
+```
+
+## Comparison of Yards with Interceptions
+
+The distribution of yards according to Interceptions ang the segregation of data with respect to the consition of Interceptions less than 12 is shown.
+
+```{r Plot based on Yards with Interceptions less than 12 for nfl 2014,echo=TRUE}
+plot(nfl_2014_cond1$Int,nfl_2014_cond1$Yds,main='Plot of Interceptions vs Yards',xlim = c(0,20),col=ifelse(nfl_2014_cond1$Int<12,"red","blue"),xlab="Interceptions",ylab="Yards")
+axis(1,seq(10,20,by=2))
+segments(x0 = 12,y0 = 1000,y1=5000,lty=2,col = "brown")
+```
+
+Conclusion: The yards range from '1000' to '5000' with more yards measuring less than 2200 for Interceptions less than 12. For Interceptions greater than 12, the yard measures are scattered around 3500 to 5000 range with none less than 2000.
+
+## Touchdowns Vs Interceptions
+
+The touchdown and Interceptions plot is shown
+
+```{r Plot on touchdown vs interceptions for nfl 2014,echo=TRUE}
+plot(nfl_2014_cond1$TD,nfl_2014_cond1$Int,main='Plot of Touchdowns vs Interceptions',xlab="Touchdown",ylab="Interceptions",col="brown")
+```
+
+
+
+## Analysis of NFL data for all four seasons
+
+The nfl data for the four seasons are imported and merged with respect to the player names. Duplicated Data is copied from the original data and then subjected to cleansing(removing of special characters) and filtered according to those players who have played atleast 5 games and who have atleast made 100 attempts.
+
+```{r Importing and Merging nfl data from four seasons}
+nfl_2012 <- read.csv('C:/Users/Raghavendran/Documents/UN 5550/nfl-passing-2012.csv')
+nfl_2013 <- read.csv('C:/Users/Raghavendran/Documents/UN 5550/nfl-passing-2013.csv')
+nfl_2014 <- read.csv('C:/Users/Raghavendran/Documents/UN 5550/nfl-passing-2014.csv')
+nfl_2015 <- read.csv('C:/Users/Raghavendran/Documents/UN 5550/nfl-passing-2015.csv')
+
+nfl_2012_clean <- nfl_2012
+colnames(nfl_2012_clean) <- c("Rk_12","X", "Tm_12","Age_12","G_12", "GS_12","QBrec_12", "Cmp_12","Att_12","Cmp._12" , "Yds_12","TD_12",
+"TD._12","Int_12","Int._12" , "Lng_12","Y.A_12","AY.A_12" , "Y.C_12","Y.G_12","Rate_12" , "QBR_12","Sk_12","Yds.1_12", "NY.A_12", 
+"ANY.A_12", "Sk._12","X4QC_12" ,"GWD_12")
+#nfl_2012_clean$X <- str_replace_all(nfl_2012_clean$X,"[*+]","")
+nfl_2012_clean$X <- gsub( "[^[:alnum:],]", "", nfl_2012_clean$X)
+nfl_2013_clean <- nfl_2013
+colnames(nfl_2013_clean) <- c("Rk_13","X", "Tm_13","Age_13","Pos_13","G_13", "GS_13","QBrec_13", "Cmp_13","Att_13","Cmp._13" , "Yds_13","TD_13",
+"TD._13","Int_13","Int._13" , "Lng_13","Y.A_13","AY.A_13" , "Y.C_13","Y.G_13","Rate_13" , "QBR_13","Sk_13","Yds.1_13", "NY.A_13", 
+"ANY.A_13", "Sk._13","X4QC_13" ,"GWD_13")
+#nfl_2013_clean$X <- str_replace_all(nfl_2013_clean$X,"[*+]","")
+nfl_2013_clean$X <- gsub( "[^[:alnum:],]", "", nfl_2013_clean$X)
+nfl_2014_clean <- nfl_2014
+colnames(nfl_2014_clean) <- c("Rk_14","X", "Tm_14","Age_14","Pos_14","G_14", "GS_14","QBrec_14", "Cmp_14","Att_14","Cmp._14" , "Yds_14","TD_14",
+"TD._14","Int_14","Int._14" , "Lng_14","Y.A_14","AY.A_14" , "Y.C_14","Y.G_14","Rate_14" , "QBR_14","Sk_14","Yds.1_14", "NY.A_14", 
+"ANY.A_14", "Sk._14","X4QC_14" ,"GWD_14")
+#nfl_2014_clean$X <- str_replace_all(nfl_2014_clean$X,"[*+]","")
+nfl_2014_clean$X <- gsub( "[^[:alnum:],]", "", nfl_2014_clean$X)
+nfl_2015_clean <- nfl_2015
+nfl_2015_clean$X <- substr(as.character(nfl_2015_clean$X),1,nchar(as.character(nfl_2015_clean$X))-9)
+colnames(nfl_2015_clean) <- c("Rk_15","X", "Tm_15","Age_15","Pos_15","G_15", "GS_15","QBrec_15", "Cmp_15","Att_15","Cmp._15" , "Yds_15","TD_15",
+"TD._15","Int_15","Int._15" , "Lng_15","Y.A_15","AY.A_15" , "Y.C_15","Y.G_15","Rate_15" , "QBR_15","Sk_15","Yds.1_15", "NY.A_15", 
+"ANY.A_15", "Sk._15","X4QC_15" ,"GWD_15" )
+
+#nfl_2015_clean$X <- str_replace_all(nfl_2015_clean$X,"[*+]","")
+nfl_2015_clean$X <- gsub( "[^[:alnum:],]", "", nfl_2015_clean$X)
+```
+
+```{r}
+nfl_12_13 <- merge(nfl_2012_clean,nfl_2013_clean, by = 'X')
+nfl_12_13_14 <- merge(nfl_12_13,nfl_2014_clean, by ='X')
+nfl <- merge(nfl_12_13_14,nfl_2015_clean,by = 'X')
+```
+
+```{r}
+nfl <- nfl[(nfl$G_12 >=5 & nfl$Att_12 >=100) & (nfl$G_13 >= 5 & nfl$Att_13 >=100) & (nfl$G_14 >=5 & nfl$Att_14 >=100) & (nfl$G_15 >=5 & nfl$Att_15 >=100),]
+nfl[is.na(nfl)] = 0
+```
+
+The nfl data that is cleansed and filtered according to the consition now has 19 observations which denotes that only 19 players in all four seasons have played atleast 5 games and 100 attempts in each season.
+
+## Average Touchdown for each player across four seasons
+
+```{r Calculate Average Touchdowns}
+nfl_TD <- as.data.frame(cbind(nfl$TD_12,nfl$TD_13,nfl$TD_14,nfl$TD_15))
+colnames(nfl_TD) <- c("TD_12","TD_13","TD_14","TD_15")
+rownames(nfl_TD) <- nfl$X
+Avg_touchdown <- rowMeans(nfl_TD)
+print(Avg_touchdown)
+```
+
+Calculation of Mean, median and mode of average touchdowns
+
+```{r Mean, median and mode}
+print(paste("Mean of average touchdown is",mean(Avg_touchdown)))
+print(paste("Median of average touchdown is",median(Avg_touchdown)))
+print(paste("Mode of average touchdown is",modes(Avg_touchdown)[1,]))
+
+```
+
+Calculation of Mean, median and mode of average  Completion percentage
+
+```{r Calculate Average Completion Percentage}
+nfl_Cmp <- as.data.frame(cbind(nfl$Cmp._12,nfl$Cmp._13,nfl$Cmp._14,nfl$Cmp._15))
+colnames(nfl_Cmp) <- c("Cmp._12","Cmp._13","Cmp._14","Cmp._15")
+rownames(nfl_Cmp) <- nfl$X
+Avg_completionperc <- rowMeans(nfl_Cmp)
+print(Avg_completionperc)
+```
+
+## Scatter plot of Average touchdown and Average completion percentage
+
+```{r Scatter plot of Average touchdown and average completion percentage}
+palette <- distinctColorPalette(19)
+plot(Avg_touchdown,Avg_completionperc,main="Average touchdown Vs Average completion percentage",col=palette,pch=16,cex=3)
+text(Avg_touchdown,Avg_completionperc,labels = nfl$X)
+```
+
+From the plot, we are able to find that Drew Beers has the highest average touchdown and average competion percentage followed by Peyton Manning, Aaron Rodgers and Tom Brady. AndrewLuck has lowest average completion percentage at an average touchdown of approximately 25. Nick Foles has the lowest average touchdown with an average completion percentage of approximately 60.
+
+## Scatter plot of Touchdown and Completion percentage across four seasons
+
+Here, the touchdowns and completion percentages of all the players with respect to seasons are plotted. Here the touchdowns of season 2015 are scattered to a great extent according to the completion percentage. The touchdowns in 2012 mostly lie between 20 to 30 with completion percentage around 60.
+
+```{r Scatterplot of touchdown and completion percentage for all seasons}
+nfl_TD_cmp <- as.data.frame(cbind(nfl_TD,nfl$Cmp._12,nfl$Cmp._13,nfl$Cmp._14,nfl$Cmp._15))
+colnames(nfl_TD_cmp) <- c("TD_12","TD_13","TD_14","TD_15","Cmp._12","Cmp._13","Cmp._14","Cmp._15")
+
+plot(c(nfl_TD_cmp$TD_12,nfl_TD_cmp$TD_13,nfl_TD_cmp$TD_14,nfl_TD_cmp$TD_15),c(nfl_TD_cmp$Cmp._12,nfl_TD_cmp$Cmp._13,nfl_TD_cmp$Cmp._14,nfl_TD_cmp$Cmp._15),main="Touchdown vs Completion percentage",xlab="Touchdown",ylab="Completion Percentage",col=rep(1:4,each=19),pch=22)
+
+legend(45,62,col=1:19,c("2012","2013","2014","2015"),pch=22)
+```
+
+## Histogram of Yards across four seasons
+
+The Histogram of Yards across the four seasons are plotted 
+
+```{r Yards with respect of Seasons}
+nfl_Yds <- as.data.frame(cbind(nfl$Yds_12,nfl$Yds_13,nfl$Yds_14,nfl$Yds_15))
+colnames(nfl_Yds) <- c("Yds_12","Yds_13","Yds_14","Yds_15")
+rownames(nfl_Yds) <- nfl$X
+
+nfl_Yds_lst <- list(Yds_2012=nfl_Yds$Yds_12,Yds_2013=nfl_Yds$Yds_13,Yds_2014=nfl_Yds$Yds_14,Yds_2015=nfl_Yds$Yds_15)
+
+ggplot(melt(nfl_Yds_lst),aes(x=value,fill= L1)) + geom_histogram(position="dodge",binwidth = 1000) + labs(title = "Histogram of Yards with respect to Seasons ") + xlab("Yards")
+```
+
+From the Histogram, we can see that the count of Yards are highest in season 2015 and lowest in 2012 and 2013.
+
+## Calculating Average quarterback rating of top 3 quarterbacks for all seasons
+
+The average quarterback rating of top 3 quarterbacks across four seasons are calculated .
+
+```{r Average Quarterback rating}
+nfl_Rate <- as.data.frame(cbind(nfl$Rate_12,nfl$Rate_13,nfl$Rate_14,nfl$Rate_15))
+colnames(nfl_Rate) <- c("Rate_12","Rate_13","Rate_14","Rate_15")
+rownames(nfl_Rate) <- nfl$X
+Avg_Rate <- rowMeans(nfl_Rate)
+tail(sort(Avg_Rate),3)
+```
+
+From the calculation, I have displayed the top 3 Quarterbacks who are Aaron Rodgers, Russell Wilson and Drew Brees.
+
+Plotting the Touchdown and Completion percentage of Aaron Rodgers
+
+```{r Aaron Rodgers}
+plot(c(nfl_TD_cmp[1,]$TD_12,nfl_TD_cmp[1,]$TD_13,nfl_TD_cmp[1,]$TD_14,nfl_TD_cmp[1,]$TD_15),c(nfl_TD_cmp[1,]$Cmp._12,nfl_TD_cmp[1,]$Cmp._13,nfl_TD_cmp[1,]$Cmp._14,nfl_TD_cmp[1,]$Cmp._15),main = "Aaron's Touchdown vs Completion percentage",xlab = "Touchdown",ylab = "Completion Percentage")
+#segments(39,60,39,68,lty=3)
+#segments(17,60,17,68,lty=3)
+#segments(38,60,38,68,lty=3)
+#segments(31,60,31,68,lty=3)
+axis(3,39,labels = "2012")
+axis(3,17,labels = "2013")
+axis(3,38,labels = "2014")
+axis(3,31,labels = "2015")
+```
+
+Plotting the Touchdown and Completion percentage of Russell Wilson
+
+```{r Rusell Wilson}
+plot(c(nfl_TD_cmp[16,]$TD_12,nfl_TD_cmp[16,]$TD_13,nfl_TD_cmp[16,]$TD_14,nfl_TD_cmp[16,]$TD_15),c(nfl_TD_cmp[16,]$Cmp._12,nfl_TD_cmp[16,]$Cmp._13,nfl_TD_cmp[16,]$Cmp._14,nfl_TD_cmp[16,]$Cmp._15),main = "Rusell's Touchdown vs Completion percentage",xlab = "Touchdown",ylab = "Completion Percentage")
+#segments(26,62.0,26,69,lty=3)
+#segments(26,62.0,26,69,lty=3)
+#segments(20,62.0,20,69,lty=3)
+#segments(34,62.0,34,69,lty=3)
+axis(3,26,labels = "2012")
+axis(3,26,labels = "2013")
+axis(3,20,labels = "2014")
+axis(3,34,labels = "2015")
+```
+
+Plotting the Touchdown and Completion percentage of Drew Beers
+
+```{r Drew Beers}
+plot(c(nfl_TD_cmp[7,]$TD_12,nfl_TD_cmp[7,]$TD_13,nfl_TD_cmp[7,]$TD_14,nfl_TD_cmp[7,]$TD_15),c(nfl_TD_cmp[7,]$Cmp._12,nfl_TD_cmp[7,]$Cmp._13,nfl_TD_cmp[7,]$Cmp._14,nfl_TD_cmp[7,]$Cmp._15),main = "Drew's Touchdown vs Completion percentage",xlab = "Touchdwn",ylab = "Completion Percentage")
+#segments(43,62,43,70,lty=3)
+#segments(39,62,39,70,lty=3)
+#segments(33,62,33,70,lty=3)
+#segments(32,62,32,70,lty=3)
+axis(3,43,labels = "2012")
+axis(3,39,labels = "2013")
+axis(3,33,labels = "2014")
+axis(3,32,labels = "2015")
+```
+
+## Selection of top 5 Quarterbacks with respect to ESPN Quarterback rating
+
+The top 5 quarterbacks for ach season are calculated with respect to ESPN Quarterback rating.
+
+```{r The top 5 Quarterbacks with QBRs from ESPN in 2012}
+QBR_ESPN_12 <- data.frame(nfl$X,nfl$QBR_12,nfl$Yds_12,nfl$TD_12,nfl$Int_12,nfl$Cmp._12)
+QBR_ESPN_12 <- QBR_ESPN_12[order(QBR_ESPN_12$nfl.QBR_12,decreasing = TRUE),]
+QBR_ESPN_12[1:5,]
+```
+
+In 2012, Peytor Manning has the highest ESPN quarterback rating followed by Tom Brady and Matt ryan. The quarterback with the lowest rating is Russell Wilson. 
+
+```{r The top 5 Quarterbacks with QBRs from ESPN in 2013}
+QBR_ESPN_13 <- data.frame(nfl$X,nfl$QBR_13,nfl$Yds_13,nfl$TD_13,nfl$Int_13,nfl$Cmp._13)
+QBR_ESPN_13 <- QBR_ESPN_13[order(QBR_ESPN_13$nfl.QBR_13,decreasing = TRUE),]
+QBR_ESPN_13[1:5,]
+```
+
+In 2013, Peytor Manning has the highest ESPN quarterback rating followed by Philip Rivers and Drew Beers. The quarterback with the lowest rating is Aaron Rodgers.
+
+```{r The top 5 Quarterbacks with QBRs from ESPN in 2014}
+QBR_ESPN_14 <- data.frame(nfl$X,nfl$QBR_14,nfl$Yds_14,nfl$TD_14,nfl$Int_14,nfl$Cmp._14)
+QBR_ESPN_14 <- QBR_ESPN_14[order(QBR_ESPN_14$nfl.QBR_14,decreasing = TRUE),]
+QBR_ESPN_14[1:5,]
+```
+
+In 2014, Aaron Rodgers has the highest ESPN quarterback rating followed by Peter Manning and Tom Brady. The quarterback with the lowest rating is Drew Beers.
+
+```{r The top 5 Quarterbacks with QBRs from ESPN in 2015}
+QBR_ESPN_15 <- data.frame(nfl$X,nfl$QBR_15,nfl$Yds_15,nfl$TD_15,nfl$Int_15,nfl$Cmp._15)
+QBR_ESPN_15 <- QBR_ESPN_15[order(QBR_ESPN_15$nfl.QBR_15,decreasing = TRUE),]
+QBR_ESPN_15[1:5,]
+```
+
+In 2015, Carson Palmer has the highest ESPN quarterback rating followed by Ben Roethlisberger and Drew beers. The quarterback with the lowest rating is Andy Dalton.
